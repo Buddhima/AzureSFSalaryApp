@@ -1,0 +1,43 @@
+DROP TABLE salaries_raw;
+-- Creates an external table over the csv file
+CREATE EXTERNAL TABLE salaries_raw (
+    EMPLOYEE_NAME string,
+    JOB_TITLE string,
+    BASE_PAY float,
+    OVERTIME_PAY float,
+    OTHER_PAY float,
+    BENEFITS float,
+    TOTAL_PAY float,
+    TOTAL_PAY_N_BENEFITS float,
+    YEAR string,
+    NOTES string,
+    AGENCY string,
+    STATUS string)
+-- The following lines describe the format and location of the file
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE
+LOCATION '/sf/salary/data';
+
+-- Drop the salaries table if it exists
+DROP TABLE salaries;
+-- Create the salaries table and populate it with data
+-- pulled in from the CSV file (via the external table defined previously)
+CREATE TABLE salaries AS
+SELECT 
+    JOB_TITLE AS job_title,
+    BASE_PAY AS base_pay,
+    TOTAL_PAY AS total_pay,
+    TOTAL_PAY_N_BENEFITS AS total_pay_n_benefits
+FROM salaries_raw;
+
+INSERT OVERWRITE DIRECTORY '/sf/salary/output'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+SELECT
+    job_title,
+    avg(base_pay),
+    avg(total_pay),
+    avg(total_pay_n_benefits)
+FROM salaries
+WHERE base_pay IS NOT NULL AND total_pay IS NOT NULL AND total_pay_n_benefits IS NOT NULL
+GROUP BY job_title;
